@@ -188,3 +188,6 @@ export function CommandSummary({ stats, dlqCount, inventoryRisks }) {
     </div>
   );
 }
+
+export default CommandSummary;
+

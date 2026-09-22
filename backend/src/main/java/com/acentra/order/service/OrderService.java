@@ -40,19 +40,22 @@ public class OrderService {
     private final AuditLogRepository auditLogRepository;
     private final OrderEventProducer orderEventProducer;
     private final OperationalEventService operationalEventService;
+    private final com.acentra.intelligence.service.OrderPriorityService priorityService;
 
     public OrderService(OrderRepository orderRepository,
                         ProductRepository productRepository,
                         InventoryService inventoryService,
                         AuditLogRepository auditLogRepository,
                         OrderEventProducer orderEventProducer,
-                        OperationalEventService operationalEventService) {
+                        OperationalEventService operationalEventService,
+                        com.acentra.intelligence.service.OrderPriorityService priorityService) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.inventoryService = inventoryService;
         this.auditLogRepository = auditLogRepository;
         this.orderEventProducer = orderEventProducer;
         this.operationalEventService = operationalEventService;
+        this.priorityService = priorityService;
     }
 
     /**
@@ -97,15 +100,19 @@ public class OrderService {
         // 4. Save order in CREATED state
         Order savedOrder = orderRepository.save(order);
 
+        // Evaluate Dynamic AI Priority Score
+        com.acentra.intelligence.dto.OrderPriorityEvaluation priorityEval = priorityService.evaluatePriority(savedOrder);
+
         recordAudit(savedOrder.getId(), "ORDER_CREATED", null,
-                OrderStatus.CREATED.name(), "Order ingested and dispatched to RabbitMQ");
+                OrderStatus.CREATED.name(),
+                "Order ingested [AI Priority: " + priorityEval.getPriorityScore() + " (" + priorityEval.getPriorityLevel() + ")]. " + priorityEval.getExplanation());
 
         // 5. Emit OPERATIONAL EVENT
         operationalEventService.emitEvent(
                 OperationalEventType.ORDER_RECEIVED,
                 savedOrder.getOrderNumber(),
                 savedOrder.getCustomerId(),
-                "Order received and enqueued for async processing. Total: $" + savedOrder.getTotalAmount(),
+                "Order received [Priority " + priorityEval.getPriorityScore() + " (" + priorityEval.getPriorityLevel() + ") - " + priorityEval.getRecommendation() + "]. Total: ₹" + savedOrder.getTotalAmount(),
                 0
         );
 

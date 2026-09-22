@@ -7,7 +7,8 @@ import java.time.Instant;
 @Entity
 @Table(name = "payments", indexes = {
         @Index(name = "uk_payments_tx_ref", columnList = "transaction_reference", unique = true),
-        @Index(name = "idx_payments_order", columnList = "order_id")
+        @Index(name = "idx_payments_order", columnList = "order_id"),
+        @Index(name = "idx_payments_rzp_order", columnList = "razorpay_order_id")
 })
 public class Payment {
 
@@ -33,6 +34,12 @@ public class Payment {
 
     @Column(name = "gateway_response", columnDefinition = "TEXT")
     private String gatewayResponse;
+
+    @Column(name = "razorpay_order_id", length = 128)
+    private String razorpayOrderId;
+
+    @Column(name = "razorpay_signature", length = 256)
+    private String razorpaySignature;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -107,6 +114,22 @@ public class Payment {
 
     public void setGatewayResponse(String gatewayResponse) {
         this.gatewayResponse = gatewayResponse;
+    }
+
+    public String getRazorpayOrderId() {
+        return razorpayOrderId;
+    }
+
+    public void setRazorpayOrderId(String razorpayOrderId) {
+        this.razorpayOrderId = razorpayOrderId;
+    }
+
+    public String getRazorpaySignature() {
+        return razorpaySignature;
+    }
+
+    public void setRazorpaySignature(String razorpaySignature) {
+        this.razorpaySignature = razorpaySignature;
     }
 
     public Instant getCreatedAt() {

@@ -68,6 +68,10 @@ acentra:
       max-attempts: 3
       delay-ms: 3000
 
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:rzp_test_SlPoCiiwiPBArC}
+    key-secret: ${RAZORPAY_KEY_SECRET:}
+
 management:
   endpoints:
     web:

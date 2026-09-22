@@ -20,6 +20,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT o FROM Order o LEFT JOIN FETCH o.items i LEFT JOIN FETCH i.product WHERE o.orderNumber = :orderNumber")
     Optional<Order> findByOrderNumberWithDetails(@Param("orderNumber") String orderNumber);
 
+    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.items i LEFT JOIN FETCH i.product ORDER BY o.createdAt DESC")
+    java.util.List<Order> findAllWithDetails();
+
     Optional<Order> findByIdempotencyKey(String idempotencyKey);
 
     boolean existsByIdempotencyKey(String idempotencyKey);

@@ -15,6 +15,8 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
 
     Optional<Inventory> findByProductId(Long productId);
 
+    Optional<Inventory> findByProduct(com.acentra.product.model.Product product);
+
     Optional<Inventory> findByProductSku(String sku);
 
     /**

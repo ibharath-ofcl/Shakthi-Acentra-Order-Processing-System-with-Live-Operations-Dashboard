@@ -72,3 +72,49 @@ export const inventoryApi = {
     body: JSON.stringify({ sku, quantity }),
   }),
 };
+
+export const paymentApi = {
+  createPaymentOrder: (orderNumber) => request('/payments/create-order', {
+    method: 'POST',
+    body: JSON.stringify({ orderNumber }),
+  }),
+  verifyPayment: (paymentData) => request('/payments/verify', {
+    method: 'POST',
+    body: JSON.stringify(paymentData),
+  }),
+};
+
+export const intelligenceApi = {
+  getDashboard: () => request('/intelligence/dashboard'),
+  getAllOrderPriorities: () => request('/intelligence/orders/priorities'),
+  getOrderPriority: (orderNumber) => request(`/intelligence/orders/${orderNumber}/priority`),
+  getInventoryRisks: () => request('/intelligence/inventory/risks'),
+  runWhatIfSimulation: (simulationData) => request('/intelligence/simulate', {
+    method: 'POST',
+    body: JSON.stringify(simulationData),
+  }),
+};
+
+export const api = {
+  createOrder: ordersApi.createOrder,
+  getOrderById: ordersApi.getOrderByNumber,
+  getAllOrders: ordersApi.getAllOrders,
+  getAllInventory: inventoryApi.getAllInventory,
+  getInventoryBySku: inventoryApi.getInventoryBySku,
+  restock: inventoryApi.restock,
+  getSystemHealth: healthApi.getSystemHealth,
+  getStatistics: operationsApi.getStatistics,
+  getRecentEvents: operationsApi.getRecentEvents,
+  getDlqMessages: operationsApi.getDlqMessages,
+  retryDlqMessage: operationsApi.retryDlqMessage,
+  discardDlqMessage: operationsApi.discardDlqMessage,
+  createPaymentOrder: paymentApi.createPaymentOrder,
+  verifyPayment: paymentApi.verifyPayment,
+  getIntelligenceDashboard: intelligenceApi.getDashboard,
+  getAllOrderPriorities: intelligenceApi.getAllOrderPriorities,
+  getOrderPriority: intelligenceApi.getOrderPriority,
+  getInventoryRisks: intelligenceApi.getInventoryRisks,
+  runWhatIfSimulation: intelligenceApi.runWhatIfSimulation,
+};
+
+

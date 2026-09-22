@@ -124,7 +124,7 @@ export function OrderPipeline({ orders, events, onSelectOrder }) {
 
                             <div className="card-details">
                               <span className="customer-id font-mono">{order.customerId}</span>
-                              <span className="order-amount font-mono">${order.totalAmount?.toFixed(2)}</span>
+                              <span className="order-amount font-mono">₹{order.totalAmount?.toFixed(2)}</span>
                             </div>
 
                             <div className="card-footer">

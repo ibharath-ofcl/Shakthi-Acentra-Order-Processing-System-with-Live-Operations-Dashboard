@@ -114,7 +114,7 @@ export function OrdersTable({ orders, onSelectOrder }) {
                       <span className="tier-pill">{order.customerTier}</span>
                     </td>
                     <td>{order.items?.length || 0} units</td>
-                    <td className="font-mono text-green">${order.totalAmount?.toFixed(2)}</td>
+                    <td className="font-mono text-green">₹{order.totalAmount?.toFixed(2)}</td>
                     <td>
                       <span className={`badge ${getStatusBadgeClass(order.status)}`}>
                         {order.status}

@@ -70,6 +70,8 @@ services:
       RABBITMQ_USERNAME: acentra_user
       RABBITMQ_PASSWORD: acentra_password
       RABBITMQ_VHOST: /
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-rzp_test_SlPoCiiwiPBArC}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
     ports:
       - "8080:8080"
     depends_on:

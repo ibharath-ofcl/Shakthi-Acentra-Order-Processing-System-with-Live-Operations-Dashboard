@@ -324,7 +324,7 @@ export function ArchitecturalPipeline3D({ orders, events, onSelectOrder, theme =
                       >
                         <div className="capsule-top">
                           <span className="capsule-id font-mono">{order.orderNumber}</span>
-                          <span className="capsule-amount font-mono">${order.totalAmount?.toFixed(2)}</span>
+                          <span className="capsule-amount font-mono">₹{order.totalAmount?.toFixed(2)}</span>
                         </div>
                         <div className="capsule-bottom font-mono">
                           <span>{order.customerId}</span>

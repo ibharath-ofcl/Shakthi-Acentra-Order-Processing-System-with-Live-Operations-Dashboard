@@ -83,7 +83,7 @@ export function OrderInspector({ orderNumber, events, onClose }) {
                 </div>
                 <div className="meta-card">
                   <span className="meta-label">Valuation</span>
-                  <span className="meta-val font-mono text-green">${orderDetails.totalAmount?.toFixed(2)}</span>
+                  <span className="meta-val font-mono text-green">₹{orderDetails.totalAmount?.toFixed(2)}</span>
                 </div>
                 <div className="meta-card">
                   <span className="meta-label">Fulfillment State</span>
@@ -125,8 +125,8 @@ export function OrderInspector({ orderNumber, events, onClose }) {
                         <td className="font-mono">{item.sku}</td>
                         <td>{item.productName}</td>
                         <td className="font-mono">{item.quantity}</td>
-                        <td className="font-mono">${item.unitPrice?.toFixed(2)}</td>
-                        <td className="font-mono">${item.subtotal?.toFixed(2)}</td>
+                        <td className="font-mono">₹{item.unitPrice?.toFixed(2)}</td>
+                        <td className="font-mono">₹{item.subtotal?.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
