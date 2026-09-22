@@ -1,8 +1,10 @@
 package com.acentra.order.service;
 
-import com.acentra.common.exception.InsufficientStockException;
 import com.acentra.common.repository.AuditLogRepository;
 import com.acentra.inventory.service.InventoryService;
+import com.acentra.messaging.producer.OrderEventProducer;
+import com.acentra.operations.model.OperationalEventType;
+import com.acentra.operations.service.OperationalEventService;
 import com.acentra.order.dto.OrderCancelRequest;
 import com.acentra.order.dto.OrderCreateRequest;
 import com.acentra.order.dto.OrderItemRequest;
@@ -28,6 +30,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,6 +48,12 @@ class OrderServiceTest {
     @Mock
     private AuditLogRepository auditLogRepository;
 
+    @Mock
+    private OrderEventProducer orderEventProducer;
+
+    @Mock
+    private OperationalEventService operationalEventService;
+
     @InjectMocks
     private OrderService orderService;
 
@@ -57,7 +66,7 @@ class OrderServiceTest {
     }
 
     @Test
-    @DisplayName("Should successfully create order and reserve stock")
+    @DisplayName("Should successfully ingest order in CREATED state and dispatch to RabbitMQ")
     void testCreateOrder_Success() {
         String idempotencyKey = "key-success-1";
         OrderCreateRequest request = new OrderCreateRequest(
@@ -79,21 +88,22 @@ class OrderServiceTest {
         OrderResponse response = orderService.createOrder(idempotencyKey, request);
 
         assertNotNull(response);
-        assertEquals(OrderStatus.PENDING_PAYMENT, response.getStatus());
+        assertEquals(OrderStatus.CREATED, response.getStatus());
         assertEquals("CUST-001", response.getCustomerId());
         assertEquals(new BigDecimal("99.98"), response.getTotalAmount());
 
-        verify(inventoryService, times(1)).reserveStock(sampleProduct, 2, 10L);
-        verify(auditLogRepository, times(1)).save(any());
+        verify(orderEventProducer, times(1)).sendOrderCreated(any());
+        verify(operationalEventService, times(1)).emitEvent(
+                eq(OperationalEventType.ORDER_RECEIVED), anyString(), eq("CUST-001"), anyString(), eq(0));
     }
 
     @Test
-    @DisplayName("Should return existing order on duplicate idempotency key without re-reserving")
+    @DisplayName("Should return existing order on duplicate idempotency key without publishing again")
     void testCreateOrder_DuplicateIdempotencyKey() {
         String idempotencyKey = "key-dup-1";
         Order existingOrder = new Order("ORD-EXISTING", idempotencyKey, "CUST-001", CustomerTier.STANDARD);
         existingOrder.setId(99L);
-        existingOrder.setStatus(OrderStatus.PENDING_PAYMENT);
+        existingOrder.setStatus(OrderStatus.CREATED);
 
         when(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(true);
         when(orderRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.of(existingOrder));
@@ -108,39 +118,7 @@ class OrderServiceTest {
 
         assertNotNull(response);
         assertEquals("ORD-EXISTING", response.getOrderNumber());
-        verify(inventoryService, never()).reserveStock(any(), anyInt(), anyLong());
-    }
-
-    @Test
-    @DisplayName("Should fail order and throw exception when stock is insufficient")
-    void testCreateOrder_InsufficientStock() {
-        String idempotencyKey = "key-stock-fail";
-        OrderCreateRequest request = new OrderCreateRequest(
-                "CUST-002",
-                CustomerTier.VIP,
-                List.of(new OrderItemRequest("SKU-100", 100))
-        );
-
-        when(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false);
-        when(productRepository.findBySku("SKU-100")).thenReturn(Optional.of(sampleProduct));
-        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
-            Order o = invocation.getArgument(0);
-            if (o.getId() == null) {
-                o.setId(20L);
-            }
-            return o;
-        });
-
-        doThrow(new InsufficientStockException("SKU-100", 100, 5))
-                .when(inventoryService).reserveStock(sampleProduct, 100, 20L);
-
-        InsufficientStockException exception = assertThrows(InsufficientStockException.class, () ->
-                orderService.createOrder(idempotencyKey, request)
-        );
-
-        assertEquals("SKU-100", exception.getSku());
-        assertEquals(100, exception.getRequestedQuantity());
-        assertEquals(5, exception.getAvailableQuantity());
+        verify(orderEventProducer, never()).sendOrderCreated(any());
     }
 
     @Test
@@ -159,5 +137,7 @@ class OrderServiceTest {
         assertEquals(OrderStatus.CANCELLED, response.getStatus());
         verify(inventoryService, times(1)).releaseStock(sampleProduct, 3, 30L);
         verify(auditLogRepository, times(1)).save(any());
+        verify(operationalEventService, times(1)).emitEvent(
+                eq(OperationalEventType.ORDER_FAILED), eq("ORD-CANCEL-1"), eq("CUST-003"), anyString(), eq(0));
     }
 }

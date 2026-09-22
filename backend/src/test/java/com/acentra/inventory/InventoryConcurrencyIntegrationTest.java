@@ -1,30 +1,33 @@
 package com.acentra.inventory;
 
 import com.acentra.common.exception.InsufficientStockException;
+import com.acentra.config.TestRabbitConfig;
 import com.acentra.inventory.model.Inventory;
 import com.acentra.inventory.repository.InventoryRepository;
-import com.acentra.order.dto.OrderCreateRequest;
-import com.acentra.order.dto.OrderItemRequest;
-import com.acentra.order.model.CustomerTier;
-import com.acentra.order.service.OrderService;
+import com.acentra.inventory.service.InventoryService;
 import com.acentra.product.dto.ProductCreateRequest;
+import com.acentra.product.model.Product;
 import com.acentra.product.service.ProductService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Import(TestRabbitConfig.class)
 public class InventoryConcurrencyIntegrationTest {
 
     @Autowired
@@ -34,7 +37,7 @@ public class InventoryConcurrencyIntegrationTest {
     private InventoryRepository inventoryRepository;
 
     @Autowired
-    private OrderService orderService;
+    private InventoryService inventoryService;
 
     @Test
     @DisplayName("Zero-Overselling Concurrency Test: 25 concurrent threads competing for 10 units")
@@ -52,6 +55,8 @@ public class InventoryConcurrencyIntegrationTest {
                 initialStock
         ));
 
+        Product product = productService.getProductEntityBySku(testSku);
+
         ExecutorService executor = Executors.newFixedThreadPool(10);
         CountDownLatch startLatch = new CountDownLatch(1);
         CountDownLatch finishLatch = new CountDownLatch(totalAttempts);
@@ -59,22 +64,14 @@ public class InventoryConcurrencyIntegrationTest {
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger failedCount = new AtomicInteger(0);
 
-        // 2. Submit 25 concurrent orders in parallel
+        // 2. Submit 25 concurrent stock reservations in parallel
         for (int i = 0; i < totalAttempts; i++) {
-            final String idempotencyKey = "key-concur-" + i + "-" + UUID.randomUUID();
-            final String customerId = "CUST-" + i;
+            final long dummyOrderId = (long) (i + 1);
 
             executor.submit(() -> {
                 try {
-                    startLatch.await(); // Ensure all threads start simultaneously
-
-                    OrderCreateRequest request = new OrderCreateRequest(
-                            customerId,
-                            CustomerTier.STANDARD,
-                            List.of(new OrderItemRequest(testSku, 1))
-                    );
-
-                    orderService.createOrder(idempotencyKey, request);
+                    startLatch.await(); // Ensure all threads fire simultaneously
+                    inventoryService.reserveStock(product, 1, dummyOrderId);
                     successCount.incrementAndGet();
                 } catch (InsufficientStockException ex) {
                     failedCount.incrementAndGet();
@@ -93,8 +90,8 @@ public class InventoryConcurrencyIntegrationTest {
 
         // 3. Assertions
         assertEquals(true, completed, "All concurrent tasks should complete within timeout");
-        assertEquals(10, successCount.get(), "Exactly 10 orders should succeed since initial stock was 10");
-        assertEquals(15, failedCount.get(), "Exactly 15 orders should fail due to insufficient stock");
+        assertEquals(10, successCount.get(), "Exactly 10 reservations should succeed since initial stock was 10");
+        assertEquals(15, failedCount.get(), "Exactly 15 reservations should fail due to insufficient stock");
 
         // 4. Verify Database Inventory State
         Inventory finalInventory = inventoryRepository.findByProductSku(testSku).orElseThrow();

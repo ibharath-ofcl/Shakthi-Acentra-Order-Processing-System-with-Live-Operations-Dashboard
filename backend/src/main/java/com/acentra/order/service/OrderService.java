@@ -1,11 +1,14 @@
 package com.acentra.order.service;
 
-import com.acentra.common.exception.InsufficientStockException;
 import com.acentra.common.exception.InvalidOrderStateException;
 import com.acentra.common.exception.ResourceNotFoundException;
 import com.acentra.common.model.AuditLog;
 import com.acentra.common.repository.AuditLogRepository;
 import com.acentra.inventory.service.InventoryService;
+import com.acentra.messaging.dto.OrderProcessingMessage;
+import com.acentra.messaging.producer.OrderEventProducer;
+import com.acentra.operations.model.OperationalEventType;
+import com.acentra.operations.service.OperationalEventService;
 import com.acentra.order.dto.OrderCancelRequest;
 import com.acentra.order.dto.OrderCreateRequest;
 import com.acentra.order.dto.OrderItemRequest;
@@ -35,19 +38,25 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final InventoryService inventoryService;
     private final AuditLogRepository auditLogRepository;
+    private final OrderEventProducer orderEventProducer;
+    private final OperationalEventService operationalEventService;
 
     public OrderService(OrderRepository orderRepository,
                         ProductRepository productRepository,
                         InventoryService inventoryService,
-                        AuditLogRepository auditLogRepository) {
+                        AuditLogRepository auditLogRepository,
+                        OrderEventProducer orderEventProducer,
+                        OperationalEventService operationalEventService) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.inventoryService = inventoryService;
         this.auditLogRepository = auditLogRepository;
+        this.orderEventProducer = orderEventProducer;
+        this.operationalEventService = operationalEventService;
     }
 
     /**
-     * Atomically creates an order with idempotency protection and zero-overselling inventory reservation.
+     * Ingests an order asynchronously via RabbitMQ with idempotency and operational tracking.
      */
     @Transactional
     public OrderResponse createOrder(String idempotencyKey, OrderCreateRequest request) {
@@ -85,40 +94,33 @@ public class OrderService {
             order.addItem(item);
         }
 
-        // Save order in CREATED state
+        // 4. Save order in CREATED state
         Order savedOrder = orderRepository.save(order);
 
-        // 4. Reserve Inventory with Canonical Ordering (Sort by Product ID to prevent deadlocks)
-        List<OrderItem> sortedItems = new ArrayList<>(savedOrder.getItems());
-        sortedItems.sort(Comparator.comparing(item -> item.getProduct().getId()));
+        recordAudit(savedOrder.getId(), "ORDER_CREATED", null,
+                OrderStatus.CREATED.name(), "Order ingested and dispatched to RabbitMQ");
 
-        try {
-            for (OrderItem item : sortedItems) {
-                inventoryService.reserveStock(item.getProduct(), item.getQuantity(), savedOrder.getId());
-            }
+        // 5. Emit OPERATIONAL EVENT
+        operationalEventService.emitEvent(
+                OperationalEventType.ORDER_RECEIVED,
+                savedOrder.getOrderNumber(),
+                savedOrder.getCustomerId(),
+                "Order received and enqueued for async processing. Total: $" + savedOrder.getTotalAmount(),
+                0
+        );
 
-            // Move state to PENDING_PAYMENT upon successful reservation
-            savedOrder.setStatus(OrderStatus.PENDING_PAYMENT);
-            orderRepository.save(savedOrder);
+        // 6. Publish to RabbitMQ Topic Exchange
+        OrderProcessingMessage message = new OrderProcessingMessage(
+                savedOrder.getOrderNumber(),
+                savedOrder.getIdempotencyKey(),
+                savedOrder.getCustomerId(),
+                savedOrder.getCustomerTier(),
+                request.getItems(),
+                request.getSimulateFailure()
+        );
+        orderEventProducer.sendOrderCreated(message);
 
-            recordAudit(savedOrder.getId(), "ORDER_RESERVED", OrderStatus.CREATED.name(),
-                    OrderStatus.PENDING_PAYMENT.name(), "Inventory successfully reserved");
-
-            log.info("Order {} successfully created and reserved. Total: ${}",
-                    savedOrder.getOrderNumber(), savedOrder.getTotalAmount());
-
-        } catch (InsufficientStockException ex) {
-            log.error("Insufficient stock while processing order {}: {}", savedOrder.getOrderNumber(), ex.getMessage());
-            savedOrder.setStatus(OrderStatus.INSUFFICIENT_STOCK);
-            savedOrder.setFailureReason(ex.getMessage());
-            orderRepository.save(savedOrder);
-
-            recordAudit(savedOrder.getId(), "STOCK_CHECK_FAILED", OrderStatus.CREATED.name(),
-                    OrderStatus.INSUFFICIENT_STOCK.name(), ex.getMessage());
-
-            throw ex;
-        }
-
+        log.info("Order {} ingested and enqueued to RabbitMQ for processing.", savedOrder.getOrderNumber());
         return OrderResponse.fromEntity(savedOrder);
     }
 
@@ -171,6 +173,14 @@ public class OrderService {
 
         recordAudit(order.getId(), "ORDER_CANCELLED", previousStatus.name(),
                 OrderStatus.CANCELLED.name(), reason);
+
+        operationalEventService.emitEvent(
+                OperationalEventType.ORDER_FAILED,
+                order.getOrderNumber(),
+                order.getCustomerId(),
+                "Order cancelled by operator: " + reason,
+                0
+        );
 
         log.info("Order {} cancelled. Reason: {}", orderNumber, reason);
         return OrderResponse.fromEntity(updated);

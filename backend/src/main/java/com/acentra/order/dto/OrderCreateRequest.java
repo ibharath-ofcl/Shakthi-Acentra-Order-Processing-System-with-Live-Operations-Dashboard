@@ -17,6 +17,8 @@ public class OrderCreateRequest {
     @Valid
     private List<OrderItemRequest> items;
 
+    private String simulateFailure = "NONE"; // NONE, RETRY, DLQ
+
     public OrderCreateRequest() {
     }
 
@@ -24,6 +26,22 @@ public class OrderCreateRequest {
         this.customerId = customerId;
         this.customerTier = customerTier;
         this.items = items;
+        this.simulateFailure = "NONE";
+    }
+
+    public OrderCreateRequest(String customerId, CustomerTier customerTier, List<OrderItemRequest> items, String simulateFailure) {
+        this.customerId = customerId;
+        this.customerTier = customerTier;
+        this.items = items;
+        this.simulateFailure = simulateFailure != null ? simulateFailure : "NONE";
+    }
+
+    public String getSimulateFailure() {
+        return simulateFailure;
+    }
+
+    public void setSimulateFailure(String simulateFailure) {
+        this.simulateFailure = simulateFailure;
     }
 
     public String getCustomerId() {

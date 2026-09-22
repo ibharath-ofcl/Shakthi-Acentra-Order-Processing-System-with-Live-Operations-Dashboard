@@ -31,6 +31,43 @@ spring:
     show-sql: false
     open-in-view: false
 
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:acentra_user}
+    password: ${RABBITMQ_PASSWORD:acentra_password}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        concurrency: 3
+        max-concurrency: 10
+        prefetch: 10
+
+acentra:
+  rabbitmq:
+    exchange:
+      order: acentra.order.exchange
+      retry: acentra.retry.exchange
+      dlx: acentra.dlx
+    queue:
+      process: order.process.queue
+      retry: order.retry.queue
+      inventory: order.inventory.queue
+      success: order.success.queue
+      failed: order.failed.queue
+      dlq: order.dlq
+    routing-key:
+      created: order.created
+      retry: order.retry
+      inventory: order.inventory
+      completed: order.completed
+      failed: order.failed
+      deadletter: order.deadletter
+    retry:
+      max-attempts: 3
+      delay-ms: 3000
+
 management:
   endpoints:
     web:
