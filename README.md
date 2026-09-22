@@ -1,6 +1,6 @@
 # Shakthi-Acentra: Order Processing System with Live Operations Dashboard
 
-[![Project Status: Foundation Initialized](https://img.shields.io/badge/status-foundation--initialized-blue.svg)](#current-development-status)
+[![Project Status: Architecture Defined](https://img.shields.io/badge/status-architecture--defined-brightgreen.svg)](#current-development-status)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
@@ -42,13 +42,24 @@ The objective of the Shakthi-Acentra platform is to deliver a decoupled, highly 
 
 ---
 
+## 📖 Technical Architecture & Documentation
+
+Comprehensive architectural blueprints and technical specifications are maintained in the [`docs/`](./docs/README.md) directory:
+
+- 🏛️ **[System Architecture (ARCHITECTURE.md)](./docs/ARCHITECTURE.md)**: Full system topology, order lifecycle state machine, atomic inventory concurrency strategy, RabbitMQ queue topology, DLQ & saga recovery, WebSocket telemetry, and baseline vs. innovative feature matrix.
+- 🗄️ **[Database Design & Schema (DATABASE_DESIGN.md)](./docs/DATABASE_DESIGN.md)**: MySQL 8.0 InnoDB schema, ER diagrams, table schemas, primary/foreign keys, indexing strategies, and transaction isolation rules.
+- 🔌 **[API & WebSocket Specification (API_SPECIFICATION.md)](./docs/API_SPECIFICATION.md)**: REST endpoints for order ingestion, inventory, and DLQ operations, error schemas, and STOMP topic payloads.
+
+---
+
 ## 📊 Current Development Status
-- **Current Phase**: `Stage 2: Initial Project Foundation`
-- **Foundation State**:
-  - Git repository configured and verified with remote sync.
-  - Comprehensive `.gitignore` established for multi-tier Java/React stack.
-  - Clean modular directory layout initialized (`backend/`, `frontend/`, `docker/`, `docs/`).
-  - Architectural blueprints and roadmap defined.
+- **Current Phase**: `Stage 3: Technical Architecture & System Design Defined`
+- **Current Milestone**:
+  - Full micro-architecture and asynchronous message topology specified.
+  - Concurrency safeguards designed to eliminate overselling under high loads.
+  - Complete MySQL schema and ER diagrams established.
+  - RESTful APIs and STOMP WebSocket telemetry contracts formalized.
+  - Docker multi-container layout mapped out.
 
 ---
 
@@ -73,26 +84,21 @@ Shakthi-Acentra
 │   ├── MySQL Persistence Service
 │   └── RabbitMQ Messaging Broker
 └── docs/
-    ├── Architecture & Sequence Diagrams
-    ├── API Contracts & Schemas
-    └── Operational Runbooks
+    ├── System Architecture & Sequence Diagrams (ARCHITECTURE.md)
+    ├── MySQL Relational Schema & ERD (DATABASE_DESIGN.md)
+    └── REST & WebSocket Protocol Contracts (API_SPECIFICATION.md)
 ```
-
-1. **Order Ingestion & API Gateway**: High-throughput REST endpoints receiving orders and publishing validated order events.
-2. **Inventory Management & Allocation Engine**: Safe inventory checking, reservation locks, and compensation actions to eliminate overselling.
-3. **Message Broker & Queue Pipeline**: Decoupled message routing with distinct queues for order intake, inventory reservation, payment verification, and fulfillment dispatch.
-4. **Resilience & Dead-Letter Queue (DLQ) Engine**: Automated retry backoff policies, poison-pill isolation, and operator-assisted manual replay tools.
-5. **Live Operations Dashboard**: High-density React interface streaming live statistics on throughput (TPS), latency percentiles, queue lag, and error rates.
 
 ---
 
 ## 🗺️ Development Roadmap
 
 - [x] **Stage 1**: Git Repository Setup & Remote Access Verification
-- [x] **Stage 2**: Project Foundation & Repository Architecture *(Current)*
-- [ ] **Stage 3**: Docker Infrastructure & Baseline Container Services (MySQL, RabbitMQ)
-- [ ] **Stage 4**: Spring Boot Backend Core (Domain Entities, Repositories, Database Schema)
-- [ ] **Stage 5**: Asynchronous Messaging & Order Processing Queues with RabbitMQ
-- [ ] **Stage 6**: Inventory Concurrency Controls, DLQ, & Fault Tolerance Handlers
-- [ ] **Stage 7**: React Live Operations Dashboard & Real-Time Telemetry Streaming
-- [ ] **Stage 8**: End-to-End Integration, Stress Testing, and Final Documentation
+- [x] **Stage 2**: Project Foundation & Repository Architecture
+- [x] **Stage 3**: Complete Technical Architecture & Database Design *(Current)*
+- [ ] **Stage 4**: Docker Infrastructure & Baseline Container Services (MySQL, RabbitMQ)
+- [ ] **Stage 5**: Spring Boot Backend Core (Domain Entities, Repositories, Database Schema)
+- [ ] **Stage 6**: Asynchronous Messaging & Order Processing Queues with RabbitMQ
+- [ ] **Stage 7**: Inventory Concurrency Controls, DLQ, & Fault Tolerance Handlers
+- [ ] **Stage 8**: React Live Operations Dashboard & Real-Time Telemetry Streaming
+- [ ] **Stage 9**: End-to-End Integration, Stress Testing, and Final Documentation
